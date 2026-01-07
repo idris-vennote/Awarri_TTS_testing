@@ -182,17 +182,17 @@ st.set_page_config(page_title="TTS Model Testing", layout="wide")
 
 st.title("🎙️ TTS Model Testing Application")
 
-# Create tabs - SWAPPED ORDER
+# Create tabs
 tab1, tab2 = st.tabs(["📊 Evaluate Previous Tests", "🔴 Live Test"])
 
-# Tab 1: Evaluate Previous Tests (NOW FIRST)
+# Tab 1: Evaluate Previous Tests
 with tab1:
     st.header("Evaluate Previous TTS Tests")
     
     # Scoring criteria explanation
     with st.expander("ℹ️ Scoring Criteria Explanation", expanded=False):
         st.markdown("""
-        **Rate each audio on a scale of 1-10 for the following criteria:**
+        **After listening to all audios, rate the overall TTS model on a scale of 1-10 for the following criteria:**
         
         1. **Naturalness (1-10)**: How natural and human-like does the audio sound? Does it have appropriate rhythm, intonation, and flow?
         
@@ -215,10 +215,7 @@ with tab1:
             st.error("❌ No audio files found in 'hausa_audio' folder. Please ensure audio files are present.")
         else:
             st.success(f"👤 Evaluator: **{user_name}**")
-            
-            # Store scores
-            if 'scores' not in st.session_state:
-                st.session_state.scores = {}
+            st.info("👂 Listen to all audios below, then provide your overall evaluation at the bottom.")
             
             # Short audios
             st.subheader("📝 Short Audios")
@@ -232,26 +229,6 @@ with tab1:
                     
                     with col2:
                         st.text_area(f"Original Text", text, height=80, key=f"text_short_{idx}", disabled=True)
-                    
-                    # Scoring inputs
-                    cols = st.columns(4)
-                    audio_name = f"Hausa_short_audio{idx}"
-                    
-                    with cols[0]:
-                        naturalness = st.number_input("Naturalness", 1, 10, 5, key=f"nat_short_{idx}")
-                    with cols[1]:
-                        accuracy = st.number_input("Accuracy", 1, 10, 5, key=f"acc_short_{idx}")
-                    with cols[2]:
-                        numbers = st.number_input("Numbers", 1, 10, 5, key=f"num_short_{idx}")
-                    with cols[3]:
-                        mtn = st.number_input("MTN Lingo", 1, 10, 5, key=f"mtn_short_{idx}")
-                    
-                    st.session_state.scores[audio_name] = {
-                        'naturalness': naturalness,
-                        'accuracy': accuracy,
-                        'numbers': numbers,
-                        'mtn_lingo': mtn
-                    }
                     
                     st.divider()
             
@@ -268,26 +245,6 @@ with tab1:
                     with col2:
                         st.text_area(f"Original Text", text, height=100, key=f"text_medium_{idx}", disabled=True)
                     
-                    # Scoring inputs
-                    cols = st.columns(4)
-                    audio_name = f"Hausa_medium_audio{idx}"
-                    
-                    with cols[0]:
-                        naturalness = st.number_input("Naturalness", 1, 10, 5, key=f"nat_medium_{idx}")
-                    with cols[1]:
-                        accuracy = st.number_input("Accuracy", 1, 10, 5, key=f"acc_medium_{idx}")
-                    with cols[2]:
-                        numbers = st.number_input("Numbers", 1, 10, 5, key=f"num_medium_{idx}")
-                    with cols[3]:
-                        mtn = st.number_input("MTN Lingo", 1, 10, 5, key=f"mtn_medium_{idx}")
-                    
-                    st.session_state.scores[audio_name] = {
-                        'naturalness': naturalness,
-                        'accuracy': accuracy,
-                        'numbers': numbers,
-                        'mtn_lingo': mtn
-                    }
-                    
                     st.divider()
             
             # Long audios
@@ -303,27 +260,21 @@ with tab1:
                     with col2:
                         st.text_area(f"Original Text", text, height=120, key=f"text_long_{idx}", disabled=True)
                     
-                    # Scoring inputs
-                    cols = st.columns(4)
-                    audio_name = f"Hausa_long_audio{idx}"
-                    
-                    with cols[0]:
-                        naturalness = st.number_input("Naturalness", 1, 10, 5, key=f"nat_long_{idx}")
-                    with cols[1]:
-                        accuracy = st.number_input("Accuracy", 1, 10, 5, key=f"acc_long_{idx}")
-                    with cols[2]:
-                        numbers = st.number_input("Numbers", 1, 10, 5, key=f"num_long_{idx}")
-                    with cols[3]:
-                        mtn = st.number_input("MTN Lingo", 1, 10, 5, key=f"mtn_long_{idx}")
-                    
-                    st.session_state.scores[audio_name] = {
-                        'naturalness': naturalness,
-                        'accuracy': accuracy,
-                        'numbers': numbers,
-                        'mtn_lingo': mtn
-                    }
-                    
                     st.divider()
+            
+            # Overall evaluation section
+            st.subheader("📝 Overall Evaluation")
+            st.markdown("**After listening to all audios above, provide your overall scores:**")
+            
+            cols = st.columns(4)
+            with cols[0]:
+                naturalness = st.number_input("Naturalness (1-10)", 1, 10, 5, key="overall_naturalness")
+            with cols[1]:
+                accuracy = st.number_input("Accuracy (1-10)", 1, 10, 5, key="overall_accuracy")
+            with cols[2]:
+                numbers = st.number_input("Numbers (1-10)", 1, 10, 5, key="overall_numbers")
+            with cols[3]:
+                mtn = st.number_input("MTN Lingo (1-10)", 1, 10, 5, key="overall_mtn")
             
             # Overall comment
             st.subheader("💬 Overall Comment")
@@ -333,26 +284,24 @@ with tab1:
             if st.button("📤 Submit Evaluation", type="primary"):
                 if user_name:
                     with st.spinner("Saving evaluation..."):
-                        # Save all scores to Excel
-                        for audio_name, scores in st.session_state.scores.items():
-                            data = {
-                                'Timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                                'User Name': user_name,
-                                'Audio Name': audio_name,
-                                'Naturalness Score': scores['naturalness'],
-                                'Accuracy Score': scores['accuracy'],
-                                'Pronouncing Numbers Score': scores['numbers'],
-                                'Pronouncing MTN Lingo Score': scores['mtn_lingo'],
-                                'Overall Comment': overall_comment
-                            }
-                            save_to_excel(data)
+                        # Save one overall evaluation
+                        data = {
+                            'Timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                            'User Name': user_name,
+                            'Naturalness Score': naturalness,
+                            'Accuracy Score': accuracy,
+                            'Pronouncing Numbers Score': numbers,
+                            'Pronouncing MTN Lingo Score': mtn,
+                            'Overall Comment': overall_comment
+                        }
+                        save_to_excel(data)
                         
                         st.success("✅ Evaluation submitted successfully!")
                         st.balloons()
                 else:
                     st.error("❌ Please enter your name before submitting.")
 
-# Tab 2: Live Test (NOW SECOND)
+# Tab 2: Live Test
 with tab2:
     st.header("Live Audio Testing")
     st.write("Record audio and test the transcription model in real-time.")
