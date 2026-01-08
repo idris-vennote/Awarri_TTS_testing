@@ -3,9 +3,11 @@ import os
 import requests
 import time
 import base64
-import pandas as pd
+import json
 from datetime import datetime
 from dotenv import load_dotenv
+import gspread
+from google.oauth2.service_account import Credentials
 
 # Load environment variables
 load_dotenv()
@@ -15,6 +17,79 @@ AWARRI_LANGUAGE_MAPPING = {
     "hausa": "Hausa",
     "english": "English"
 }
+
+# Google Sheets setup
+SCOPES = [
+    'https://www.googleapis.com/auth/spreadsheets',
+    'https://www.googleapis.com/auth/drive'
+]
+
+@st.cache_resource
+def get_google_sheets_client():
+    """Initialize Google Sheets client"""
+    try:
+        # Load credentials from environment variable
+        creds_json = os.getenv("GOOGLE_SHEETS_CREDENTIALS")
+        if not creds_json:
+            st.error("Google Sheets credentials not found in environment")
+            return None
+        
+        creds_dict = json.loads(creds_json)
+        creds = Credentials.from_service_account_info(creds_dict, scopes=SCOPES)
+        client = gspread.authorize(creds)
+        return client
+    except Exception as e:
+        st.error(f"Failed to initialize Google Sheets: {str(e)}")
+        return None
+
+def save_to_google_sheets(data):
+    """Save evaluation data to Google Sheets"""
+    try:
+        client = get_google_sheets_client()
+        if not client:
+            return False
+        
+        sheet_id = os.getenv("GOOGLE_SHEET_ID")
+        if not sheet_id:
+            st.error("Google Sheet ID not found in environment")
+            return False
+        
+        spreadsheet = client.open_by_key(sheet_id)
+        worksheet = spreadsheet.sheet1
+        
+        # Check if headers exist, if not add them
+        try:
+            headers = worksheet.row_values(1)
+            if not headers:
+                raise Exception("No headers")
+        except:
+            headers = [
+                'Timestamp',
+                'User Name',
+                'Naturalness Score',
+                'Accuracy Score',
+                'Pronouncing Numbers Score',
+                'Pronouncing MTN Lingo Score',
+                'Overall Comment'
+            ]
+            worksheet.append_row(headers)
+        
+        # Append data
+        row = [
+            data['Timestamp'],
+            data['User Name'],
+            data['Naturalness Score'],
+            data['Accuracy Score'],
+            data['Pronouncing Numbers Score'],
+            data['Pronouncing MTN Lingo Score'],
+            data['Overall Comment']
+        ]
+        worksheet.append_row(row)
+        return True
+        
+    except Exception as e:
+        st.error(f"Failed to save to Google Sheets: {str(e)}")
+        return False
 
 def encode_audio_to_base64_uri(audio_bytes):
     """Encode audio bytes to base64 data URI"""
@@ -114,17 +189,6 @@ def generate_awarri_audio(text: str):
         st.error("Awarri TTS network error")
         st.code(str(e), language="text")
         return None, 0.0
-
-def save_to_excel(data, filename="tts_evaluation_scores.xlsx"):
-    """Save or append evaluation data to Excel file"""
-    df_new = pd.DataFrame([data])
-    
-    if os.path.exists(filename):
-        df_existing = pd.read_excel(filename)
-        df_combined = pd.concat([df_existing, df_new], ignore_index=True)
-        df_combined.to_excel(filename, index=False)
-    else:
-        df_new.to_excel(filename, index=False)
 
 def get_audio_files():
     """Get all audio files from the hausa_audio folder"""
@@ -283,8 +347,8 @@ with tab1:
             # Submit button
             if st.button("📤 Submit Evaluation", type="primary"):
                 if user_name:
-                    with st.spinner("Saving evaluation..."):
-                        # Save one overall evaluation
+                    with st.spinner("Saving evaluation to Google Sheets..."):
+                        # Prepare data
                         data = {
                             'Timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                             'User Name': user_name,
@@ -294,10 +358,13 @@ with tab1:
                             'Pronouncing MTN Lingo Score': mtn,
                             'Overall Comment': overall_comment
                         }
-                        save_to_excel(data)
                         
-                        st.success("✅ Evaluation submitted successfully!")
-                        st.balloons()
+                        # Save to Google Sheets
+                        if save_to_google_sheets(data):
+                            st.success("✅ Evaluation submitted successfully to Google Sheets!")
+                            st.balloons()
+                        else:
+                            st.error("❌ Failed to save evaluation. Please try again.")
                 else:
                     st.error("❌ Please enter your name before submitting.")
 
