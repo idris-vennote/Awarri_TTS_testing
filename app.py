@@ -28,13 +28,17 @@ SCOPES = [
 def get_google_sheets_client():
     """Initialize Google Sheets client"""
     try:
-        # Load credentials from environment variable
-        creds_json = os.getenv("GOOGLE_SHEETS_CREDENTIALS")
-        if not creds_json:
-            st.error("Google Sheets credentials not found in environment")
-            return None
+        # Try to load from Streamlit secrets first (for deployment)
+        if hasattr(st, 'secrets') and "GOOGLE_SHEETS_CREDENTIALS" in st.secrets:
+            creds_dict = dict(st.secrets["GOOGLE_SHEETS_CREDENTIALS"])
+        else:
+            # Fallback to environment variable (for local development)
+            creds_json = os.getenv("GOOGLE_SHEETS_CREDENTIALS")
+            if not creds_json:
+                st.error("Google Sheets credentials not found")
+                return None
+            creds_dict = json.loads(creds_json)
         
-        creds_dict = json.loads(creds_json)
         creds = Credentials.from_service_account_info(creds_dict, scopes=SCOPES)
         client = gspread.authorize(creds)
         return client
@@ -49,9 +53,10 @@ def save_to_google_sheets(data):
         if not client:
             return False
         
-        sheet_id = os.getenv("GOOGLE_SHEET_ID")
+        # Try to get Sheet ID from secrets first (for deployment), then env (for local)
+        sheet_id = st.secrets.get("GOOGLE_SHEET_ID") if hasattr(st, 'secrets') else os.getenv("GOOGLE_SHEET_ID")
         if not sheet_id:
-            st.error("Google Sheet ID not found in environment")
+            st.error("Google Sheet ID not found")
             return False
         
         spreadsheet = client.open_by_key(sheet_id)
