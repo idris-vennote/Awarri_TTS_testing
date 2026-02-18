@@ -118,7 +118,7 @@ def transcribe_with_awarri_new(audio_bytes, language):
         
         start_time = time.time()
         response = requests.post(
-            "https://vennote.langeasyllm.com/v1/asr/transcribe",
+            "https://dev.langeasyllm.com/v1/asr/transcribe",
             json=payload,
             headers=headers,
             timeout=60
